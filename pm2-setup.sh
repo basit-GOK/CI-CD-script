@@ -217,8 +217,42 @@ if pm2 list | grep -q "$PM2_NAME"; then
     pm2 delete "$PM2_NAME" || true
 fi
 
-# Start the app
-pm2 start $START_CMD --name "$PM2_NAME" || err "PM2 failed to start the application."
+# Build correct PM2 start command
+# PM2 cannot run "yarn start:prod" or "npm run start:prod" directly as a string.
+# Correct syntax is: pm2 start yarn --name "app" -- start:prod
+#                or: pm2 start npm  --name "app" -- run start:prod
+#                or: pm2 start serve --name "app" -- -s build -l 3000
+
+if [[ "$START_CMD" == serve* ]]; then
+    # Static file server — run serve directly
+    # e.g. serve -s build -l 3000
+    SERVE_ARGS="${START_CMD#serve}"   # strip the word "serve" to get the args
+    pm2 start serve --name "$PM2_NAME" -- $SERVE_ARGS \
+        || err "PM2 failed to start the application."
+
+elif [[ "$START_CMD" == yarn* ]]; then
+    # e.g. yarn start  or  yarn start:prod
+    SCRIPT="${START_CMD#yarn }"       # strip "yarn " → start:prod
+    pm2 start yarn --name "$PM2_NAME" -- "$SCRIPT" \
+        || err "PM2 failed to start the application."
+
+elif [[ "$START_CMD" == pnpm* ]]; then
+    # e.g. pnpm run start:prod
+    SCRIPT="${START_CMD#pnpm run }"   # strip "pnpm run " → start:prod
+    pm2 start pnpm --name "$PM2_NAME" -- run "$SCRIPT" \
+        || err "PM2 failed to start the application."
+
+elif [[ "$START_CMD" == npm* ]]; then
+    # e.g. npm run start  or  npm run start:prod
+    SCRIPT="${START_CMD#npm run }"    # strip "npm run " → start:prod
+    pm2 start npm --name "$PM2_NAME" -- run "$SCRIPT" \
+        || err "PM2 failed to start the application."
+
+else
+    # Custom command — treat as a direct script/file (e.g. node server.js)
+    pm2 start $START_CMD --name "$PM2_NAME" \
+        || err "PM2 failed to start the application."
+fi
 pm2 save
 success "App started under PM2 as '${PM2_NAME}'"
 
