@@ -109,14 +109,17 @@ if [[ "$START_CMD" == serve* ]]; then
     fi
 fi
 
-# PM2 process name
+# Auto-detect repo name from URL
 REPO_NAME=$(basename "${GITHUB_REPO%/}" .git)
+info "Detected repo name: ${BOLD}${REPO_NAME}${RESET}"
+
+# PM2 process name
 read -rp "  PM2 process name [${REPO_NAME}]: " PM2_INPUT
 PM2_NAME="${PM2_INPUT:-$REPO_NAME}"
 
-# App directory
-read -rp "  Directory to clone into [/home/ubuntu/${REPO_NAME}]: " DIR_INPUT
-APP_DIR="${DIR_INPUT:-/home/ubuntu/${REPO_NAME}}"
+# App directory — auto-derived from repo name, no need to ask
+APP_DIR="$(pwd)/${REPO_NAME}"
+info "App will be cloned into: ${BOLD}${APP_DIR}${RESET}"
 
 # ─────────────────────────────────────────────
 # Summary
